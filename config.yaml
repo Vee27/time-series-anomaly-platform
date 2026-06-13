@@ -1,0 +1,45 @@
+data:
+  raw_path: "data/raw/human_vital_signs_dataset_2024.csv"
+  processed_path: "data/processed/icu_vitals_clean.csv"
+  resample_freq: "1min"
+  freq_minutes: 1
+
+# Mapping from Kaggle column names -> internal standard names
+column_mapping:
+  "Heart Rate": "heart_rate"
+  "Respiratory Rate": "resp_rate"
+  "Body Temperature": "temperature"
+  "Oxygen Saturation": "spo2"
+  "Systolic Blood Pressure": "systolic_bp"
+  "Diastolic Blood Pressure": "diastolic_bp"
+  "Patient ID": "patient_id"
+
+vitals:
+  - heart_rate
+  - spo2
+  - resp_rate
+  - temperature
+  - systolic_bp
+  - diastolic_bp
+
+physiological_limits:
+  heart_rate: [20, 250]
+  spo2: [50, 100]
+  resp_rate: [4, 60]
+  temperature: [30, 42]
+  systolic_bp: [60, 220]
+  diastolic_bp: [30, 140]
+
+feature_engineering:
+  rolling_windows: [5, 15, 60]   # minutes, for rolling mean/std features
+  lag_features: [1, 5, 15]        # minutes, lag values for LSTM sequences
+  scaler: "standard"              # standard | minmax
+
+lstm:
+  sequence_length: 60   # 60 timesteps (minutes) per window
+  train_split: 0.8
+
+prophet:
+  target_column: "heart_rate"
+  train_split: 0.8
+  changepoint_prior_scale: 0.05
