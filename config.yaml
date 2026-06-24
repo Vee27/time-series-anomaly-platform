@@ -13,6 +13,7 @@ column_mapping:
   "Systolic Blood Pressure": "systolic_bp"
   "Diastolic Blood Pressure": "diastolic_bp"
   "Patient ID": "patient_id"
+  "Timestamp": "timestamp"
 
 vitals:
   - heart_rate
