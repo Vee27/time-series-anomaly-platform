@@ -44,3 +44,10 @@ prophet:
   target_column: "heart_rate"
   train_split: 0.8
   changepoint_prior_scale: 0.05
+
+isolation_forest:
+  train_split: 0.8
+  n_estimators: 200
+  contamination: 0.05      # expect ~5% anomalies
+  max_features: 1.0
+  random_state: 42
