@@ -3,7 +3,6 @@ run.py
 ------
 IsolationForestDetector: high-level class that wires together
 data_prep → train → predict → visualize.
-
 """
 
 import yaml
@@ -83,11 +82,11 @@ class IsolationForestDetector:
 
     def plot(self, result: pd.DataFrame = None,
              save_dir: str = "results/figures") -> None:
-        plot_results(result or self.result, save_dir)
+        plot_results(result if result is not None else self.result, save_dir)
 
     def save_results(self, result: pd.DataFrame = None,
                      out_dir: str = "results") -> Path:
-        return save_results(result or self.result, out_dir)
+        return save_results(result if result is not None else self.result, out_dir)
 
     @classmethod
     def from_saved_model(cls, config_path: str = "config.yaml",
