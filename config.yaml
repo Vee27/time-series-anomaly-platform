@@ -37,8 +37,13 @@ feature_engineering:
   scaler: "standard"              # standard | minmax
 
 lstm:
-  sequence_length: 60   # 60 timesteps (minutes) per window
+  sequence_length: 60
   train_split: 0.8
+  latent_dim: 32          
+  epochs: 5             # use 5 during dev, 50 for final run
+  batch_size: 64
+  learning_rate: 0.001
+  threshold_multiplier: 3.0   # mean + N×std of train MSE
 
 prophet:
   target_column: "heart_rate"
