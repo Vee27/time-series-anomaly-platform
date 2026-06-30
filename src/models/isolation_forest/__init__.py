@@ -7,6 +7,3 @@ Only IsolationForestDetector needs to be imported from outside.
     from src.models.isolation_forest import IsolationForestDetector
 """
 
-from .run import IsolationForestDetector
-
-__all__ = ["IsolationForestDetector"]

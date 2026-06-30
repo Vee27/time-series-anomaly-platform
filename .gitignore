@@ -6,3 +6,4 @@ data/
 .env
 *.h5
 *.pkl
+icu_anomaly_detection.egg-info/

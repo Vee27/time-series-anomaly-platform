@@ -2,6 +2,11 @@
 Plots for LSTM reconstruction error and anomaly detection results.
 """
 
+
+
+from src.utils.logger import get_logger
+
+log = get_logger(__name__)
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -21,7 +26,7 @@ def plot_training_loss(history, save_dir: str = "results/figures") -> None:
     path = Path(save_dir) / "lstm_training_loss.png"
     plt.savefig(path, dpi=120, bbox_inches="tight")
     plt.close()
-    print(f"  Saved → {path}")
+    log.info(f"  Saved → {path}")
 
 
 def plot_reconstruction_error(result: pd.DataFrame,
@@ -88,4 +93,4 @@ def plot_reconstruction_error(result: pd.DataFrame,
     path = Path(save_dir) / "lstm_reconstruction_error.png"
     plt.savefig(path, dpi=120, bbox_inches="tight")
     plt.close()
-    print(f"  Saved → {path}")
+    log.info(f"  Saved → {path}")

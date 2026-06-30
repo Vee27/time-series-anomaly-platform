@@ -5,6 +5,11 @@ IsolationForestDetector: high-level class that wires together
 data_prep → train → predict → visualize.
 """
 
+
+
+from src.utils.logger import get_logger
+
+log = get_logger(__name__)
 import yaml
 import pandas as pd
 from pathlib import Path
@@ -25,7 +30,7 @@ def save_results(result: pd.DataFrame,
     out_path = Path(out_dir) / "isolation_forest_results.csv"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     result.to_csv(out_path, index=False)
-    print(f"  Saved results → {out_path}")
+    log.info(f"  Saved results → {out_path}")
     return out_path
 
 
@@ -47,32 +52,32 @@ class IsolationForestDetector:
         self.result    = None
 
     def run(self) -> pd.DataFrame:
-        print(f"\n{'='*60}")
-        print("Isolation Forest Anomaly Detection")
-        print(f"{'='*60}")
+        log.info(f"\n{'='*60}")
+        log.info("Isolation Forest Anomaly Detection")
+        log.info(f"{'='*60}")
 
         # 1. Data
         df, feature_cols = load_feature_matrix(self.cfg)
 
-        print(f"\n{'='*60}")
-        print("Splitting data")
-        print(f"{'='*60}")
+        log.info(f"\n{'='*60}")
+        log.info("Splitting data")
+        log.info(f"{'='*60}")
         train_df, _, self.split_idx = chronological_split(
             df, self.if_cfg["train_split"]
         )
 
         # 2. Train
-        print(f"\n{'='*60}")
-        print("Training")
-        print(f"{'='*60}")
+        log.info(f"\n{'='*60}")
+        log.info("Training")
+        log.info(f"{'='*60}")
         self.model = build_model(self.cfg)
         fit_model(self.model, train_df, feature_cols)
         save_model(self.model)
 
         # 3. Predict
-        print(f"\n{'='*60}")
-        print("Scoring full dataset")
-        print(f"{'='*60}")
+        log.info(f"\n{'='*60}")
+        log.info("Scoring full dataset")
+        log.info(f"{'='*60}")
         self.result = score_and_flag(
             self.model, df, feature_cols, self.split_idx
         )

@@ -13,6 +13,11 @@ Key training decisions:
     This is still chronological (Keras takes the last 10% of the array).
 """
 
+
+
+from src.utils.logger import get_logger
+
+log = get_logger(__name__)
 import numpy as np
 from pathlib import Path
 import tensorflow as tf
@@ -31,7 +36,7 @@ def fit_model(model: keras.Model,
 
     Returns Keras History object for loss curve plotting.
     """
-    print(f"  Training on {X_train.shape}  epochs={epochs}  batch={batch_size}")
+    log.info(f"  Training on {X_train.shape}  epochs={epochs}  batch={batch_size}")
 
     callbacks = [
         keras.callbacks.EarlyStopping(
@@ -57,7 +62,7 @@ def save_model(model: keras.Model,
                path: str = DEFAULT_MODEL_PATH) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     model.save(path)
-    print(f"  Saved model → {path}")
+    log.info(f"  Saved model → {path}")
 
 
 def load_model(path: str = DEFAULT_MODEL_PATH) -> keras.Model:

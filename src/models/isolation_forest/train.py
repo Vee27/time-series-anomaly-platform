@@ -8,6 +8,11 @@ Keeping training separate from prediction means you can:
   - load a saved model at inference time without touching this file
 """
 
+
+
+from src.utils.logger import get_logger
+
+log = get_logger(__name__)
 import joblib
 import pandas as pd
 from pathlib import Path
@@ -43,9 +48,9 @@ def fit_model(model: IsolationForest,
               feature_cols: list) -> IsolationForest:
     """Fit on the training split. Returns the fitted model."""
     X_train = train_df[feature_cols].to_numpy()
-    print(f"  Fitting IsolationForest on {X_train.shape}...")
+    log.info(f"  Fitting IsolationForest on {X_train.shape}...")
     model.fit(X_train)
-    print("  Done.")
+    log.info("  Done.")
     return model
 
 
@@ -53,7 +58,7 @@ def save_model(model: IsolationForest,
                path: str = DEFAULT_MODEL_PATH) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, path)
-    print(f"  Saved model → {path}")
+    log.info(f"  Saved model → {path}")
 
 
 def load_model(path: str = DEFAULT_MODEL_PATH) -> IsolationForest:

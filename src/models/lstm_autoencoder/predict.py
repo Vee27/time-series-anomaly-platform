@@ -14,6 +14,11 @@ Threshold strategy:
   must be fixed before ever looking at test data.
 """
 
+
+
+from src.utils.logger import get_logger
+
+log = get_logger(__name__)
 import numpy as np
 import pandas as pd
 from tensorflow import keras
@@ -48,8 +53,8 @@ def compute_threshold(train_mse: np.ndarray,
     Never recompute this from test data.
     """
     threshold = float(train_mse.mean() + multiplier * train_mse.std())
-    print(f"  Train MSE — mean={train_mse.mean():.6f}  std={train_mse.std():.6f}")
-    print(f"  Threshold (×{multiplier}): {threshold:.6f}")
+    log.info(f"  Train MSE — mean={train_mse.mean():.6f}  std={train_mse.std():.6f}")
+    log.info(f"  Threshold (×{multiplier}): {threshold:.6f}")
     return threshold
 
 
@@ -90,13 +95,13 @@ def flag_anomalies(mse: np.ndarray,
     result.loc[result.index >= split_idx, "split"] = "test"
 
     n_anom = result["anomaly"].sum()
-    print(f"\n  Anomalies flagged: {n_anom} / {len(result)}  "
+    log.info(f"\n  Anomalies flagged: {n_anom} / {len(result)}  "
           f"({n_anom / len(result):.1%})")
     return result
 
 
 def print_metrics(result: pd.DataFrame) -> None:
-    print("\n── LSTM Autoencoder metrics ─────────────────────────────")
+    log.info("\n── LSTM Autoencoder metrics ─────────────────────────────")
     for split in ["train", "test"]:
         sub = result[result["split"] == split]
         if sub.empty:
@@ -104,6 +109,6 @@ def print_metrics(result: pd.DataFrame) -> None:
         rate     = sub["anomaly"].mean()
         mean_mse = sub["mse"].mean()
         max_mse  = sub["mse"].max()
-        print(f"  {split:5s}  anomaly_rate={rate:.2%}  "
+        log.info(f"  {split:5s}  anomaly_rate={rate:.2%}  "
               f"mean_mse={mean_mse:.6f}  max_mse={max_mse:.6f}  n={len(sub)}")
-    print("─────────────────────────────────────────────────────────\n")
+    log.info("─────────────────────────────────────────────────────────\n")

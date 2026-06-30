@@ -8,6 +8,11 @@ Sequences were built by feature_engineering.py using vitals-only columns
 upstream — do NOT rescale here.
 """
 
+
+
+from src.utils.logger import get_logger
+
+log = get_logger(__name__)
 import numpy as np
 from pathlib import Path
 
@@ -28,7 +33,7 @@ def load_sequences(cfg: dict):
         )
     data = np.load(seq_path)
     sequences = data["sequences"]          # (N, 60, 6)
-    print(f"Loaded sequences: {sequences.shape}  dtype={sequences.dtype}")
+    log.info(f"Loaded sequences: {sequences.shape}  dtype={sequences.dtype}")
     return sequences, seq_path
 
 
@@ -48,5 +53,5 @@ def chronological_split(sequences: np.ndarray, train_split: float):
     split_idx = int(N * train_split)
     X_train   = sequences[:split_idx]
     X_test    = sequences[split_idx:]
-    print(f"  Train: {X_train.shape}   Test: {X_test.shape}")
+    log.info(f"  Train: {X_train.shape}   Test: {X_test.shape}")
     return X_train, X_test, split_idx

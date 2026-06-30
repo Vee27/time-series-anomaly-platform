@@ -18,6 +18,11 @@ Usage:
     detector.plot(results)
 """
 
+
+
+from src.utils.logger import get_logger
+
+log = get_logger(__name__)
 import warnings
 import numpy as np
 import pandas as pd
@@ -57,7 +62,7 @@ def prepare_prophet_df(df: pd.DataFrame, target_col: str) -> pd.DataFrame:
     prophet_df = prophet_df.dropna(subset=["y"]).reset_index(drop=True)
     n_dropped = n_before - len(prophet_df)
     if n_dropped:
-        print(f"  Dropped {n_dropped} NaN rows from '{target_col}' before Prophet fit")
+        log.info(f"  Dropped {n_dropped} NaN rows from '{target_col}' before Prophet fit")
     return prophet_df
 
 
@@ -69,8 +74,8 @@ def train_test_split(prophet_df: pd.DataFrame, train_split: float):
     split_idx = int(len(prophet_df) * train_split)
     train_df  = prophet_df.iloc[:split_idx].copy()
     test_df   = prophet_df.iloc[split_idx:].copy()
-    print(f"  Train: {len(train_df)} rows  ({train_df['ds'].min()} → {train_df['ds'].max()})")
-    print(f"  Test : {len(test_df)} rows  ({test_df['ds'].min()} → {test_df['ds'].max()})")
+    log.info(f"  Train: {len(train_df)} rows  ({train_df['ds'].min()} → {train_df['ds'].max()})")
+    log.info(f"  Test : {len(test_df)} rows  ({test_df['ds'].min()} → {test_df['ds'].max()})")
     return train_df, test_df
 
 
@@ -103,9 +108,9 @@ def build_prophet(changepoint_prior_scale: float = 0.05) -> Prophet:
 
 def fit_prophet(model: Prophet, train_df: pd.DataFrame) -> Prophet:
     """Fit Prophet on training data. Returns the fitted model."""
-    print("  Fitting Prophet...")
+    log.info("  Fitting Prophet...")
     model.fit(train_df)
-    print("  Done.")
+    log.info("  Done.")
     return model
 
 
@@ -165,7 +170,7 @@ def predict_and_flag(
 
     n_total    = len(result)
     n_anomaly  = result["anomaly"].sum()
-    print(f"\n  Anomalies flagged: {n_anomaly} / {n_total}  "
+    log.info(f"\n  Anomalies flagged: {n_anomaly} / {n_total}  "
           f"({n_anomaly / n_total:.1%})")
     return result
 
@@ -177,7 +182,7 @@ def print_metrics(result: pd.DataFrame) -> None:
     Print MAE, RMSE, and anomaly rate split by train/test.
     No sklearn dependency — computed in numpy for portability.
     """
-    print("\n── Prophet metrics ──────────────────────────────────────")
+    log.info("\n── Prophet metrics ──────────────────────────────────────")
     for split in ["train", "test"]:
         sub = result[result["split"] == split]
         if sub.empty:
@@ -185,9 +190,9 @@ def print_metrics(result: pd.DataFrame) -> None:
         mae  = sub["residual"].abs().mean()
         rmse = np.sqrt((sub["residual"] ** 2).mean())
         rate = sub["anomaly"].mean()
-        print(f"  {split:5s}  MAE={mae:.4f}  RMSE={rmse:.4f}  "
+        log.info(f"  {split:5s}  MAE={mae:.4f}  RMSE={rmse:.4f}  "
               f"anomaly_rate={rate:.2%}")
-    print("─────────────────────────────────────────────────────────\n")
+    log.info("─────────────────────────────────────────────────────────\n")
 
 
 # ── Plotting ──────────────────────────────────────────────────────────────────
@@ -250,7 +255,7 @@ def plot_results(
     save_path = Path(save_dir) / f"prophet_{target_col}.png"
     plt.savefig(save_path, dpi=120, bbox_inches="tight")
     plt.close()
-    print(f"  Saved plot → {save_path}")
+    log.info(f"  Saved plot → {save_path}")
 
 
 # ── Save results ──────────────────────────────────────────────────────────────
@@ -260,7 +265,7 @@ def save_results(result: pd.DataFrame, target_col: str, out_dir: str = "results"
     out_path = Path(out_dir) / f"prophet_{target_col}_results.csv"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     result.to_csv(out_path, index=False)
-    print(f"  Saved results → {out_path}")
+    log.info(f"  Saved results → {out_path}")
     return out_path
 
 
@@ -292,16 +297,16 @@ class ProphetAnomalyDetector:
 
     def run(self) -> pd.DataFrame:
         """Execute the full train → predict → flag pipeline."""
-        print(f"\n{'='*60}")
-        print(f"Prophet Anomaly Detection — target: {self.target_col}")
-        print(f"{'='*60}")
+        log.info(f"\n{'='*60}")
+        log.info(f"Prophet Anomaly Detection — target: {self.target_col}")
+        log.info(f"{'='*60}")
 
         # Load processed (unscaled) data — Prophet works best on original units
         df = pd.read_csv(
             self.cfg["data"]["processed_path"],
             parse_dates=["timestamp"],
         )
-        print(f"Loaded: {df.shape}")
+        log.info(f"Loaded: {df.shape}")
 
         prophet_df = prepare_prophet_df(df, self.target_col)
 
@@ -332,7 +337,7 @@ class ProphetAnomalyDetector:
         original_target = self.target_col
 
         for vital in self.cfg["vitals"]:
-            print(f"\n{'─'*60}")
+            log.info(f"\n{'─'*60}")
             self.target_col = vital
             self.p_cfg["target_column"] = vital
             try:
@@ -341,7 +346,7 @@ class ProphetAnomalyDetector:
                 self.save_results(result)
                 all_results[vital] = result
             except Exception as exc:
-                print(f"  ERROR on {vital}: {exc}")
+                log.info(f"  ERROR on {vital}: {exc}")
 
         self.target_col = original_target     # restore
         return all_results

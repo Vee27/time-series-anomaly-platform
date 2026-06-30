@@ -8,6 +8,11 @@ No scaling is done here — feature_scaler.pkl was already applied
 upstream. Do NOT refit or re-apply the scaler in this module.
 """
 
+
+
+from src.utils.logger import get_logger
+
+log = get_logger(__name__)
 import pandas as pd
 from pathlib import Path
 
@@ -32,7 +37,7 @@ def load_feature_matrix(cfg: dict):
         )
 
     df = pd.read_csv(path, parse_dates=["timestamp"])
-    print(f"Loaded feature matrix: {df.shape}")
+    log.info(f"Loaded feature matrix: {df.shape}")
 
     exclude = {
         "timestamp", "patient_id", "was_missing",
@@ -42,7 +47,7 @@ def load_feature_matrix(cfg: dict):
         c for c in df.columns
         if c not in exclude and pd.api.types.is_numeric_dtype(df[c])
     ]
-    print(f"Feature columns for IF: {len(feature_cols)}")
+    log.info(f"Feature columns for IF: {len(feature_cols)}")
     return df, feature_cols
 
 
@@ -58,8 +63,8 @@ def chronological_split(df: pd.DataFrame, train_split: float):
     split_idx = int(len(df) * train_split)
     train_df  = df.iloc[:split_idx].copy()
     test_df   = df.iloc[split_idx:].copy()
-    print(f"  Train: {len(train_df)} rows "
+    log.info(f"  Train: {len(train_df)} rows "
           f"({train_df['timestamp'].min()} → {train_df['timestamp'].max()})")
-    print(f"  Test : {len(test_df)} rows "
+    log.info(f"  Test : {len(test_df)} rows "
           f"({test_df['timestamp'].min()} → {test_df['timestamp'].max()})")
     return train_df, test_df, split_idx

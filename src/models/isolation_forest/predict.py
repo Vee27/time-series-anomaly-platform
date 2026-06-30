@@ -8,6 +8,11 @@ saved model — so this module is reused both in the training pipeline
 and at production inference time.
 """
 
+
+
+from src.utils.logger import get_logger
+
+log = get_logger(__name__)
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
@@ -62,7 +67,7 @@ def score_and_flag(model: IsolationForest,
     result.loc[result.index >= split_idx, "split"] = "test"
 
     n_anom = result["anomaly"].sum()
-    print(f"\n  Anomalies flagged: {n_anom} / {len(result)}  "
+    log.info(f"\n  Anomalies flagged: {n_anom} / {len(result)}  "
           f"({n_anom / len(result):.1%})")
     return result
 
@@ -95,13 +100,13 @@ def infer(model: IsolationForest,
 
 
 def print_metrics(result: pd.DataFrame) -> None:
-    print("\n── Isolation Forest metrics ─────────────────────────────")
+    log.info("\n── Isolation Forest metrics ─────────────────────────────")
     for split in ["train", "test"]:
         sub = result[result["split"] == split]
         if sub.empty:
             continue
         rate       = sub["anomaly"].mean()
         mean_score = sub["anomaly_score"].mean()
-        print(f"  {split:5s}  anomaly_rate={rate:.2%}  "
+        log.info(f"  {split:5s}  anomaly_rate={rate:.2%}  "
               f"mean_score={mean_score:.4f}  n={len(sub)}")
-    print("─────────────────────────────────────────────────────────\n")
+    log.info("─────────────────────────────────────────────────────────\n")

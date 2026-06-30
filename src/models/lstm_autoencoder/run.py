@@ -1,16 +1,18 @@
 """
 LSTMAnomalyDetector — wires data_prep → model → train → predict → visualize.
 """
-import os, sys
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"    # silence TF C++ logs
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"   # silence oneDNN
-sys.stdout.reconfigure(line_buffering=True)  # force line-buffered output
+
+
+from src.utils.logger import get_logger
+
+log = get_logger(__name__)
+import os
+import sys
 
 # ── Path fix: allows both `python run.py` AND package import ─────────────────
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
-# ─────────────────────────────────────────────────────────────────────────────
 
 import yaml
 import pandas as pd
@@ -35,7 +37,7 @@ def save_results(result: pd.DataFrame, out_dir: str = "results") -> Path:
     out_path = Path(out_dir) / "lstm_results.csv"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     result.to_csv(out_path, index=False)
-    print(f"  Saved results → {out_path}")
+    log.info(f"  Saved results → {out_path}")
     return out_path
 
 
@@ -49,9 +51,9 @@ class LSTMAnomalyDetector:
         self.split_idx = None
 
     def run(self) -> pd.DataFrame:
-        print(f"\n{'='*60}")
-        print("LSTM Autoencoder Anomaly Detection")
-        print(f"{'='*60}")
+        log.info(f"\n{'='*60}")
+        log.info("LSTM Autoencoder Anomaly Detection")
+        log.info(f"{'='*60}")
 
         # 1. Load sequences
         sequences, _ = load_sequences(self.cfg)
@@ -59,13 +61,13 @@ class LSTMAnomalyDetector:
         n_feat    = sequences.shape[2]                  # 6
 
         # 2. Split
-        print(f"\n{'='*60}\nSplitting\n{'='*60}")
+        log.info(f"\n{'='*60}\nSplitting\n{'='*60}")
         X_train, X_test, self.split_idx = chronological_split(
             sequences, self.lstm_cfg["train_split"]
         )
 
         # 3. Build + train
-        print(f"\n{'='*60}\nBuilding model\n{'='*60}")
+        log.info(f"\n{'='*60}\nBuilding model\n{'='*60}")
         self.model = build_autoencoder(
             sequence_length = seq_len,
             n_features      = n_feat,
@@ -74,9 +76,9 @@ class LSTMAnomalyDetector:
         )
         self.model.summary()
         sys.stdout.flush()
-        print("Model built. Starting training...", flush=True)
+        log.info("Model built. Starting training...")
 
-        print(f"\n{'='*60}\nTraining\n{'='*60}")
+        log.info(f"\n{'='*60}\nTraining\n{'='*60}")
         self.history = fit_model(
             self.model, X_train,
             epochs     = self.lstm_cfg["epochs"],
@@ -85,14 +87,14 @@ class LSTMAnomalyDetector:
         save_model(self.model)
 
         # 4. Threshold from train MSE only
-        print(f"\n{'='*60}\nComputing threshold\n{'='*60}")
+        log.info(f"\n{'='*60}\nComputing threshold\n{'='*60}")
         train_mse = compute_mse(self.model, X_train)
         self.threshold = compute_threshold(
             train_mse, self.lstm_cfg["threshold_multiplier"]
         )
 
         # 5. Score full dataset
-        print(f"\n{'='*60}\nScoring full dataset\n{'='*60}")
+        log.info(f"\n{'='*60}\nScoring full dataset\n{'='*60}")
         full_mse = compute_mse(self.model, sequences)
         df_clean = pd.read_csv(
             self.cfg["data"]["processed_path"],

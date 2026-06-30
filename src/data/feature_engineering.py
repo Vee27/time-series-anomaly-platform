@@ -8,6 +8,11 @@ All rolling/lag features are computed globally (no groupby) because the
 entire dataset is one continuous stream (patient_id = 1 throughout).
 """
 
+
+
+from src.utils.logger import get_logger
+
+log = get_logger(__name__)
 import numpy as np
 import pandas as pd
 import yaml
@@ -39,7 +44,7 @@ def add_rolling_features(df, vitals, windows):
 
     for col in vitals:
         if col not in df.columns:
-            print(f"  SKIP rolling: '{col}' not in df")
+            log.info(f"  SKIP rolling: '{col}' not in df")
             continue
         for w in windows:
             roll = df[col].rolling(window=w, min_periods=1)
@@ -65,7 +70,7 @@ def add_lag_features(df, vitals, lags):
     """
     for col in vitals:
         if col not in df.columns:
-            print(f"  SKIP lag: '{col}' not in df")
+            log.info(f"  SKIP lag: '{col}' not in df")
             continue
         lag_dict = {f"{col}_lag_{lag}": df[col].shift(lag) for lag in lags}
         df = pd.concat([df, pd.DataFrame(lag_dict, index=df.index)], axis=1)
@@ -124,7 +129,7 @@ def scale_features(df, feature_cols, scaler_type="standard", save_path=None):
     if save_path:
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(scaler, save_path)
-        print(f"Saved scaler → {save_path}")
+        log.info(f"Saved scaler → {save_path}")
 
     return df, scaler
 
@@ -181,33 +186,33 @@ def sanity_check(df, vitals, feature_cols):
       - roll_std variance == 0  →  all windows collapsed to single values
       - lag non-zero rate < 90% →  lags mostly empty (group size too small)
     """
-    print("\n── Feature sanity check ─────────────────────────────────")
+    log.info("\n── Feature sanity check ─────────────────────────────────")
 
     roll_std_cols = [c for c in feature_cols if "roll_std" in c]
     if roll_std_cols:
         variances = df[roll_std_cols].var().round(4)
         zero_var  = variances[variances == 0]
         if len(zero_var):
-            print(f"  WARNING: {len(zero_var)} roll_std columns have zero variance:")
-            print(f"  {list(zero_var.index)}")
-            print("  → Rolling windows may be larger than group size. "
+            log.info(f"  WARNING: {len(zero_var)} roll_std columns have zero variance:")
+            log.info(f"  {list(zero_var.index)}")
+            log.info("  → Rolling windows may be larger than group size. "
                   "Check patient_id assignment in preprocess.py.")
         else:
-            print(f"  OK — all {len(roll_std_cols)} roll_std columns have non-zero variance")
+            log.info(f"  OK — all {len(roll_std_cols)} roll_std columns have non-zero variance")
 
     lag_cols = [c for c in feature_cols if "_lag_" in c]
     if lag_cols:
         nonzero_rate = (df[lag_cols] != 0).mean().mean()
         if nonzero_rate < 0.90:
-            print(f"  WARNING: lag features non-zero rate = {nonzero_rate:.1%} "
+            log.info(f"  WARNING: lag features non-zero rate = {nonzero_rate:.1%} "
                   "(expected >90%). Lag fill may be too aggressive.")
         else:
-            print(f"  OK — lag features non-zero rate = {nonzero_rate:.1%}")
+            log.info(f"  OK — lag features non-zero rate = {nonzero_rate:.1%}")
 
-    print(f"  Total feature columns : {len(feature_cols)}")
-    print(f"  DataFrame shape       : {df.shape}")
-    print(f"  NaN count             : {df[feature_cols].isna().sum().sum()}")
-    print("─────────────────────────────────────────────────────────\n")
+    log.info(f"  Total feature columns : {len(feature_cols)}")
+    log.info(f"  DataFrame shape       : {df.shape}")
+    log.info(f"  NaN count             : {df[feature_cols].isna().sum().sum()}")
+    log.info("─────────────────────────────────────────────────────────\n")
 
 
 # ── Pipeline entry point ──────────────────────────────────────────────────────
@@ -218,33 +223,33 @@ def run(config_path="config.yaml"):
     fe_cfg   = cfg["feature_engineering"]
     lstm_cfg = cfg["lstm"]
 
-    print(f"\n{'='*60}")
-    print("Loading processed data...")
-    print(f"{'='*60}")
+    log.info(f"\n{'='*60}")
+    log.info("Loading processed data...")
+    log.info(f"{'='*60}")
     df = pd.read_csv(cfg["data"]["processed_path"], parse_dates=["timestamp"])
-    print(f"Loaded: {df.shape}")
-    print(f"NaNs in vitals:\n{df[vitals].isna().sum().to_string()}")
+    log.info(f"Loaded: {df.shape}")
+    log.info(f"NaNs in vitals:\n{df[vitals].isna().sum().to_string()}")
 
     # Single copy at pipeline entry — all mutations in-place after this
     df = df.copy()
 
-    print(f"\n{'='*60}")
-    print("STEP 1 — Rolling features")
-    print(f"{'='*60}")
+    log.info(f"\n{'='*60}")
+    log.info("STEP 1 — Rolling features")
+    log.info(f"{'='*60}")
     df = add_rolling_features(df, vitals, fe_cfg["rolling_windows"])
-    print(f"  Shape after rolling: {df.shape}")
+    log.info(f"  Shape after rolling: {df.shape}")
 
-    print(f"\n{'='*60}")
-    print("STEP 2 — Lag features")
-    print(f"{'='*60}")
+    log.info(f"\n{'='*60}")
+    log.info("STEP 2 — Lag features")
+    log.info(f"{'='*60}")
     df = add_lag_features(df, vitals, fe_cfg["lag_features"])
-    print(f"  Shape after lag: {df.shape}")
+    log.info(f"  Shape after lag: {df.shape}")
 
-    print(f"\n{'='*60}")
-    print("STEP 3 — Cyclical time features")
-    print(f"{'='*60}")
+    log.info(f"\n{'='*60}")
+    log.info("STEP 3 — Cyclical time features")
+    log.info(f"{'='*60}")
     df = add_time_features(df)
-    print(f"  Shape after time features: {df.shape}")
+    log.info(f"  Shape after time features: {df.shape}")
 
     # ── Identify feature columns (after all additions, before any dropping) ──
     exclude_cols  = {"timestamp", "patient_id", "was_missing",
@@ -253,20 +258,20 @@ def run(config_path="config.yaml"):
         c for c in df.columns
         if c not in exclude_cols and pd.api.types.is_numeric_dtype(df[c])
     ]
-    print(f"\nFeature columns identified: {len(feature_cols)}")
+    log.info(f"\nFeature columns identified: {len(feature_cols)}")
 
     # ── Fill warm-up NaNs from lag shifts; drop only if vital itself is NaN ──
-    print(f"\n{'='*60}")
-    print("STEP 4 — Handle NaNs")
-    print(f"{'='*60}")
+    log.info(f"\n{'='*60}")
+    log.info("STEP 4 — Handle NaNs")
+    log.info(f"{'='*60}")
     nan_before = df[feature_cols].isna().sum().sum()
     df[feature_cols] = df[feature_cols].fillna(0)   # lag warm-up → 0
     before_drop = len(df)
     df.dropna(subset=vitals, inplace=True)           # only drop if raw vital missing
     df.reset_index(drop=True, inplace=True)
-    print(f"  Filled {nan_before} warm-up NaNs (lag boundary zeros)")
-    print(f"  Dropped {before_drop - len(df)} rows with missing vitals")
-    print(f"  Shape after NaN handling: {df.shape}")
+    log.info(f"  Filled {nan_before} warm-up NaNs (lag boundary zeros)")
+    log.info(f"  Dropped {before_drop - len(df)} rows with missing vitals")
+    log.info(f"  Shape after NaN handling: {df.shape}")
 
     if df.empty:
         raise RuntimeError(
@@ -279,9 +284,9 @@ def run(config_path="config.yaml"):
     sanity_check(df, vitals, feature_cols)
 
     # ── Scale ─────────────────────────────────────────────────────────────────
-    print(f"{'='*60}")
-    print(f"STEP 5 — Scale ({fe_cfg['scaler']})")
-    print(f"{'='*60}")
+    log.info(f"{'='*60}")
+    log.info(f"STEP 5 — Scale ({fe_cfg['scaler']})")
+    log.info(f"{'='*60}")
     df, scaler = scale_features(
         df, feature_cols,
         scaler_type=fe_cfg["scaler"],
@@ -292,22 +297,22 @@ def run(config_path="config.yaml"):
     out_path = Path("data/processed/icu_vitals_features.csv")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out_path, index=False)
-    print(f"Saved feature dataset → {out_path}  shape={df.shape}")
+    log.info(f"Saved feature dataset → {out_path}  shape={df.shape}")
 
     # ── Build & save LSTM sequences ───────────────────────────────────────────
-    print(f"\n{'='*60}")
-    print("STEP 6 — Build LSTM sequences")
-    print(f"{'='*60}")
+    log.info(f"\n{'='*60}")
+    log.info("STEP 6 — Build LSTM sequences")
+    log.info(f"{'='*60}")
     seq_array, seq_indices = build_lstm_sequences(
         df, vitals, lstm_cfg["sequence_length"]
     )
-    print(f"  Sequence array shape : {seq_array.shape}")
-    print(f"  dtype                : {seq_array.dtype}")
-    print(f"  Memory               : {seq_array.nbytes / 1e6:.1f} MB")
+    log.info(f"  Sequence array shape : {seq_array.shape}")
+    log.info(f"  dtype                : {seq_array.dtype}")
+    log.info(f"  Memory               : {seq_array.nbytes / 1e6:.1f} MB")
 
     seq_path = Path("data/processed/lstm_sequences.npz")
     np.savez_compressed(seq_path, sequences=seq_array)
-    print(f"  Saved → {seq_path}")
+    log.info(f"  Saved → {seq_path}")
 
     return df, seq_array, seq_indices
 

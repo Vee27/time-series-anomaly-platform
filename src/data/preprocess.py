@@ -14,6 +14,11 @@ Key design decisions (document in README):
     tracking of one person. 
 """
 
+
+
+from src.utils.logger import get_logger
+
+log = get_logger(__name__)
 import argparse
 import numpy as np
 import pandas as pd
@@ -37,17 +42,17 @@ def load_and_rename(raw_path, column_mapping):
     Prints actual columns found so mismatches are caught immediately.
     """
     df = pd.read_csv(raw_path)
-    print(f"Raw shape: {df.shape}")
-    print(f"Raw columns: {list(df.columns)}")
+    log.info(f"Raw shape: {df.shape}")
+    log.info(f"Raw columns: {list(df.columns)}")
 
     # Only rename columns that actually exist in the file
     mapping = {k: v for k, v in column_mapping.items() if k in df.columns}
     missing = [k for k in column_mapping if k not in df.columns]
     if missing:
-        print(f"WARNING: These config column_mapping keys not found in CSV: {missing}")
+        log.info(f"WARNING: These config column_mapping keys not found in CSV: {missing}")
 
     df = df.rename(columns=mapping)
-    print(f"Renamed columns: {list(df.columns)}")
+    log.info(f"Renamed columns: {list(df.columns)}")
     return df
 
 
@@ -67,8 +72,8 @@ def parse_and_sort_timestamps(df, timestamp_col="timestamp"):
 
     df[timestamp_col] = pd.to_datetime(df[timestamp_col])
     df = df.sort_values(timestamp_col).reset_index(drop=True)
-    print(f"Timestamp range: {df[timestamp_col].min()} → {df[timestamp_col].max()}")
-    print(f"Total duration: {df[timestamp_col].max() - df[timestamp_col].min()}")
+    log.info(f"Timestamp range: {df[timestamp_col].min()} → {df[timestamp_col].max()}")
+    log.info(f"Total duration: {df[timestamp_col].max() - df[timestamp_col].min()}")
     return df
 
 
@@ -85,7 +90,7 @@ def assign_single_stream(df):
     meaningful rolling stats, seasonality, and LSTM sequences.
     """
     df["patient_id"] = 1
-    print(f"Assigned patient_id=1 to all {len(df)} rows (single stream mode)")
+    log.info(f"Assigned patient_id=1 to all {len(df)} rows (single stream mode)")
     return df
 
 
@@ -100,13 +105,13 @@ def clip_physiological_limits(df, limits, vitals):
     df = df.copy()
     for col in vitals:
         if col not in df.columns:
-            print(f"  SKIP clip: '{col}' not in df")
+            log.info(f"  SKIP clip: '{col}' not in df")
             continue
         lo, hi = limits[col]
         mask = (df[col] < lo) | (df[col] > hi)
         n_clipped = mask.sum()
         if n_clipped:
-            print(f"  Clipped {n_clipped} out-of-range values in '{col}' "
+            log.info(f"  Clipped {n_clipped} out-of-range values in '{col}' "
                   f"(range [{lo}, {hi}])")
         df.loc[mask, col] = np.nan
     return df
@@ -140,8 +145,8 @@ def resample_and_interpolate(df, freq, vitals, max_gap_minutes=10):
     )
 
     resampled = resampled.reset_index()
-    print(f"After resample: {len(resampled)} rows at {freq} cadence")
-    print(f"Long-gap unfilled rows (was_missing=1): {resampled['was_missing'].sum()}")
+    log.info(f"After resample: {len(resampled)} rows at {freq} cadence")
+    log.info(f"Long-gap unfilled rows (was_missing=1): {resampled['was_missing'].sum()}")
     return resampled
 
 
@@ -153,25 +158,25 @@ def drop_empty_rows(df, vitals):
     df = df.dropna(subset=vitals, how="all").reset_index(drop=True)
     dropped = before - len(df)
     if dropped:
-        print(f"Dropped {dropped} fully-empty rows")
+        log.info(f"Dropped {dropped} fully-empty rows")
     return df
 
 
 # ── Step 7: Final report ──────────────────────────────────────────────────────
 
 def report(df, vitals):
-    print("\n── Cleaned dataset summary ──────────────────────────────")
-    print(f"Shape          : {df.shape}")
-    print(f"Timestamp range: {df['timestamp'].min()} → {df['timestamp'].max()}")
-    print(f"patient_id     : {sorted(df['patient_id'].unique())}")
-    print(f"\nMissing values per vital:")
+    log.info("\n── Cleaned dataset summary ──────────────────────────────")
+    log.info(f"Shape          : {df.shape}")
+    log.info(f"Timestamp range: {df['timestamp'].min()} → {df['timestamp'].max()}")
+    log.info(f"patient_id     : {sorted(df['patient_id'].unique())}")
+    log.info(f"\nMissing values per vital:")
     for col in vitals:
         if col in df.columns:
             n = df[col].isna().sum()
-            print(f"  {col:30s}: {n}")
-    print(f"\nDescriptive stats:")
-    print(df[[c for c in vitals if c in df.columns]].describe().round(2))
-    print("─────────────────────────────────────────────────────────\n")
+            log.info(f"  {col:30s}: {n}")
+    log.info(f"\nDescriptive stats:")
+    log.info(df[[c for c in vitals if c in df.columns]].describe().round(2))
+    log.info("─────────────────────────────────────────────────────────\n")
 
 
 # ── Pipeline entry point ──────────────────────────────────────────────────────
@@ -185,41 +190,41 @@ def run_pipeline(config_path="config.yaml"):
     raw_path       = Path(cfg["data"]["raw_path"])
     processed_path = Path(cfg["data"]["processed_path"])
 
-    print(f"\n{'='*60}")
-    print(f"STEP 1 — Load & rename columns")
-    print(f"{'='*60}")
+    log.info(f"\n{'='*60}")
+    log.info(f"STEP 1 — Load & rename columns")
+    log.info(f"{'='*60}")
     df = load_and_rename(raw_path, column_mapping)
 
-    print(f"\n{'='*60}")
-    print(f"STEP 2 — Parse & sort timestamps")
-    print(f"{'='*60}")
+    log.info(f"\n{'='*60}")
+    log.info(f"STEP 2 — Parse & sort timestamps")
+    log.info(f"{'='*60}")
     df = parse_and_sort_timestamps(df)
 
-    print(f"\n{'='*60}")
-    print(f"STEP 3 — Assign single monitoring stream")
-    print(f"{'='*60}")
+    log.info(f"\n{'='*60}")
+    log.info(f"STEP 3 — Assign single monitoring stream")
+    log.info(f"{'='*60}")
     df = assign_single_stream(df)
 
-    print(f"\n{'='*60}")
-    print(f"STEP 4 — Clip physiological limits")
-    print(f"{'='*60}")
+    log.info(f"\n{'='*60}")
+    log.info(f"STEP 4 — Clip physiological limits")
+    log.info(f"{'='*60}")
     df = clip_physiological_limits(df, limits, vitals)
 
-    print(f"\n{'='*60}")
-    print(f"STEP 5 — Resample to {freq} & interpolate")
-    print(f"{'='*60}")
+    log.info(f"\n{'='*60}")
+    log.info(f"STEP 5 — Resample to {freq} & interpolate")
+    log.info(f"{'='*60}")
     df = resample_and_interpolate(df, freq, vitals)
 
-    print(f"\n{'='*60}")
-    print(f"STEP 6 — Drop fully empty rows")
-    print(f"{'='*60}")
+    log.info(f"\n{'='*60}")
+    log.info(f"STEP 6 — Drop fully empty rows")
+    log.info(f"{'='*60}")
     df = drop_empty_rows(df, vitals)
 
     report(df, vitals)
 
     processed_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(processed_path, index=False)
-    print(f"Saved cleaned data → {processed_path}")
+    log.info(f"Saved cleaned data → {processed_path}")
     return df
 
 

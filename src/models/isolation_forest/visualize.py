@@ -7,6 +7,11 @@ Kept separate so notebooks can import just the plots without
 pulling in sklearn or the training pipeline.
 """
 
+
+
+from src.utils.logger import get_logger
+
+log = get_logger(__name__)
 import matplotlib.pyplot as plt
 import pandas as pd
 from pathlib import Path
@@ -115,4 +120,4 @@ def plot_results(result: pd.DataFrame,
     save_path = Path(save_dir) / "isolation_forest_results.png"
     plt.savefig(save_path, dpi=120, bbox_inches="tight")
     plt.close()
-    print(f"  Saved plot → {save_path}")
+    log.info(f"  Saved plot → {save_path}")
